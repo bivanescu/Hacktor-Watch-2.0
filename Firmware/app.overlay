@@ -38,6 +38,19 @@
 		};
 	};
 
+	/*
+	 * The panel is mounted rotated 180 degrees relative to the touch grid,
+	 * matching the display's own orientation, so both axes need flipping.
+	 * Declaring this node also switches LVGL off the chosen-touch path,
+	 * which hardcodes its config in C and cannot express any of this.
+	 */
+	lvgl_pointer {
+		compatible = "zephyr,lvgl-pointer-input";
+		input = <&cst816s>;
+		invert-x;
+		invert-y;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -127,6 +140,12 @@
 		compatible = "hynitron,cst8xx";
 		reg = <0x15>;
 		status = "okay";
+		/*
+		 * Deferred because the 3V3_2 rail is still down at boot; the app
+		 * initialises the controller after powering the display. Losing
+		 * this makes device_init() return -EALREADY and the panel never
+		 * comes up at all.
+		 */
 		zephyr,deferred-init;
 		irq-gpios = <&gpio0 1 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 		rst-gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
