@@ -1,4 +1,5 @@
 #include "panel.h"
+#include "menu.h"
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/display.h>
@@ -34,6 +35,15 @@
 #define BATTERY_ICON_TERMINAL_HEIGHT 6
 #define BATTERY_ICON_GAP 6
 #define BATTERY_ICON_INNER_PADDING 0
+#define BOTTOM_ROW_GAP 16
+#define MENU_BUTTON_DIAMETER 40
+#define MENU_BUTTON_BAR_WIDTH 18
+#define MENU_BUTTON_BAR_HEIGHT 2
+#define MENU_BUTTON_BAR_GAP 6
+#define MENU_BUTTON_BG_HEX 0x282828
+/* Touches read up to 30px left of the finger at the left edge, measured on
+ * hardware, so a 40px target needs slack around it to be reliably hittable. */
+#define MENU_BUTTON_HIT_MARGIN 28
 #define BATTERY_REFRESH_MS 10000
 #define HOUR_HAND_LENGTH 65
 #define MINUTE_HAND_LENGTH 95
@@ -356,8 +366,7 @@ static void update_date_label(int32_t day_index)
 
 static void update_battery_label(void)
 {
-	const int32_t center_x = face_center_x() / 2;
-	const int32_t center_y = face_center_y();
+	const int32_t center_y = face_center_y() + STEP_LABEL_Y_OFFSET;
 	const int32_t fill_height = BATTERY_ICON_HEIGHT - (BATTERY_ICON_INNER_PADDING * 2);
 	const int32_t fill_width =
 		((BATTERY_ICON_BODY_WIDTH - (BATTERY_ICON_INNER_PADDING * 2)) * battery_percent) / 100;
@@ -383,7 +392,8 @@ static void update_battery_label(void)
 	label_height = lv_obj_get_height(battery_label);
 	lv_obj_set_style_text_color(battery_label, indicator_color, 0);
 	total_width = BATTERY_ICON_WIDTH + BATTERY_ICON_GAP + label_width;
-	origin_x = center_x - (total_width / 2);
+	/* Right half of the bottom row; the step counter takes the left half. */
+	origin_x = face_center_x() + (BOTTOM_ROW_GAP / 2);
 	body_y = center_y - (BATTERY_ICON_HEIGHT / 2);
 
 	lv_obj_set_pos(battery_label,
@@ -446,7 +456,7 @@ static void update_step_label(void)
 	label_width = lv_obj_get_width(step_label);
 	label_height = lv_obj_get_height(step_label);
 	total_width = label_width + STEP_ICON_GAP + step_icon.header.w;
-	origin_x = face_center_x() - (total_width / 2);
+	origin_x = face_center_x() - (BOTTOM_ROW_GAP / 2) - total_width;
 	center_y = face_center_y() + STEP_LABEL_Y_OFFSET;
 
 	lv_obj_set_pos(step_label, origin_x, center_y - (label_height / 2));
@@ -1022,6 +1032,8 @@ static void power_off_display(const struct device *display)
 
 	lvgl_lock();
 	set_clock_timer_paused(true);
+	/* Always come back to the watch face rather than wherever we left off. */
+	menu_close();
 	lvgl_unlock();
 
 	ret = display_blanking_on(display);
@@ -1208,6 +1220,67 @@ static int create_cardinal_label(lv_obj_t *parent, int value, int32_t position)
 	lv_obj_set_pos(label,
 		       polar_x(label_radius, position) - (lv_obj_get_width(label) / 2),
 		       polar_y(label_radius, position) - (lv_obj_get_height(label) / 2) + 3);
+	return 0;
+}
+
+static void open_menu_async(void *unused)
+{
+	ARG_UNUSED(unused);
+
+	menu_open();
+}
+
+static void menu_button_clicked(lv_event_t *event)
+{
+	ARG_UNUSED(event);
+
+	/* Deferred so the input device is not left latched to this button. */
+	lv_async_call(open_menu_async, NULL);
+}
+
+/* Round hamburger button where the battery indicator used to sit, on the left
+ * of the face and clear of the hands. */
+static int create_menu_button(lv_obj_t *parent)
+{
+	lv_obj_t *button;
+	int bar;
+
+	button = lv_obj_create(parent);
+	if (button == NULL) {
+		printk("LVGL allocation failed: menu button\n");
+		return -ENOMEM;
+	}
+
+	lv_obj_remove_style_all(button);
+	lv_obj_set_size(button, MENU_BUTTON_DIAMETER, MENU_BUTTON_DIAMETER);
+	lv_obj_set_style_radius(button, LV_RADIUS_CIRCLE, 0);
+	lv_obj_set_style_bg_color(button, lv_color_hex(MENU_BUTTON_BG_HEX), 0);
+	lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
+	lv_obj_set_style_bg_color(button, lv_color_hex(0x0080FF), LV_STATE_PRESSED);
+	lv_obj_set_pos(button,
+		       (face_center_x() / 2) - (MENU_BUTTON_DIAMETER / 2),
+		       face_center_y() - (MENU_BUTTON_DIAMETER / 2));
+	lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
+	lv_obj_remove_flag(button, LV_OBJ_FLAG_SCROLLABLE);
+	lv_obj_set_ext_click_area(button, MENU_BUTTON_HIT_MARGIN);
+	lv_obj_add_event_cb(button, menu_button_clicked, LV_EVENT_CLICKED, NULL);
+
+	for (bar = -1; bar <= 1; bar++) {
+		lv_obj_t *line = lv_obj_create(button);
+
+		if (line == NULL) {
+			printk("LVGL allocation failed: menu bar\n");
+			return -ENOMEM;
+		}
+
+		lv_obj_remove_style_all(line);
+		lv_obj_set_size(line, MENU_BUTTON_BAR_WIDTH, MENU_BUTTON_BAR_HEIGHT);
+		lv_obj_set_style_bg_color(line, clock_white(), 0);
+		lv_obj_set_style_bg_opa(line, LV_OPA_COVER, 0);
+		lv_obj_set_style_radius(line, MENU_BUTTON_BAR_HEIGHT / 2, 0);
+		lv_obj_align(line, LV_ALIGN_CENTER, 0, bar * MENU_BUTTON_BAR_GAP);
+	}
+
 	return 0;
 }
 
@@ -1417,6 +1490,17 @@ static int init_ui(void)
 		return -ENOMEM;
 	}
 	set_clock_timer_paused(true);
+
+	ret = create_menu_button(screen);
+	if (ret < 0) {
+		return ret;
+	}
+
+	ret = menu_init(screen);
+	if (ret < 0) {
+		printk("Menu init failed: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
