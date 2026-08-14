@@ -42,6 +42,7 @@
 #define MENU_BUTTON_BAR_HEIGHT 2
 #define MENU_BUTTON_BAR_GAP 6
 #define MENU_BUTTON_BG_HEX 0x282828
+#define MENU_BUTTON_HIT_MARGIN 28
 #define BATTERY_REFRESH_MS 10000
 #define HOUR_HAND_LENGTH 65
 #define MINUTE_HAND_LENGTH 95
@@ -1282,6 +1283,13 @@ static int create_menu_button(lv_obj_t *parent)
 		       face_center_y() - (MENU_BUTTON_DIAMETER / 2));
 	lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
 	lv_obj_remove_flag(button, LV_OBJ_FLAG_SCROLLABLE);
+	/*
+	 * Touches land up to 30px left of where the finger actually is, worst at
+	 * the left edge — measured repeatedly with the `calib` shell command.
+	 * Widening the hit area absorbs that without transforming coordinates,
+	 * and makes a 40px target easier to hit anyway.
+	 */
+	lv_obj_set_ext_click_area(button, MENU_BUTTON_HIT_MARGIN);
 	lv_obj_add_event_cb(button, menu_button_clicked, LV_EVENT_CLICKED, NULL);
 
 	for (bar = -1; bar <= 1; bar++) {

@@ -38,19 +38,6 @@
 		};
 	};
 
-	/*
-	 * The panel is mounted rotated 180 degrees relative to the touch grid,
-	 * matching the display's own orientation, so both axes need flipping.
-	 * Declaring this node also switches LVGL off the chosen-touch path,
-	 * which hardcodes its config in C and cannot express any of this.
-	 */
-	lvgl_pointer {
-		compatible = "zephyr,lvgl-pointer-input";
-		input = <&cst816s>;
-		invert-x;
-		invert-y;
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
