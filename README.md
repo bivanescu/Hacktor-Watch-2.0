@@ -41,6 +41,7 @@ This is a open-hardware wearable based on the ESP32 microcontroller. It is fully
 
 ## Repository Contents
 
+* **/Firmware** - Zephyr firmware for the watch. See [Firmware/README.md](Firmware/README.md) for setup and build instructions.
 * **/Hardware** - Schematic and hardware design files (Fusion360 & KiCAD)
 * **/Images** - Images & diagrams
 * **/Mechanical** - 3D files for the watch case
@@ -71,6 +72,7 @@ This is a open-hardware wearable based on the ESP32 microcontroller. It is fully
   </div>
 
 ## Software Support
+* **Zephyr OS — [in this repository](Firmware/), under `/Firmware`.** Watch face, app menu, display power management and an on-device battery discharge log. Start with [Firmware/README.md](Firmware/README.md).
 * <a href="https://github.com/dantudose/Hacktor">Arduino (PlatformIO)</a> 
 * <a href="https://github.com/radupascale/hectorwatch-nuttx">NuttX OS port</a> 
 * <a href="https://github.com/dantudose/Hacktor_Basic">Zephyr OS</a> 
