@@ -1,4 +1,5 @@
 #include "panel.h"
+#include "battery_log.h"
 #include "menu.h"
 
 #include <zephyr/device.h>
@@ -1014,6 +1015,7 @@ static int power_on_display(const struct device *display, bool reinit)
 	}
 
 	display_active = true;
+	battery_log_display_changed(true);
 	set_display_deadline();
 
 	lvgl_lock();
@@ -1028,6 +1030,7 @@ static void power_off_display(const struct device *display)
 	int ret;
 
 	display_active = false;
+	battery_log_display_changed(false);
 	display_deadline_ms = 0;
 
 	lvgl_lock();
@@ -1519,6 +1522,11 @@ int panel_run(void)
 	ret = init_imu_wake_gesture();
 	if (ret < 0) {
 		printk("IMU wake init failed: %d\n", ret);
+	}
+
+	ret = battery_log_init();
+	if (ret < 0) {
+		printk("Battery log init failed: %d\n", ret);
 	}
 
 	start_date = compile_date_info();

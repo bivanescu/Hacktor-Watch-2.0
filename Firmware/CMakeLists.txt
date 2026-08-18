@@ -9,5 +9,6 @@ target_sources(app PRIVATE
     src/main.c
     src/panel.c
     src/menu.c
+    src/battery_log.c
     src/assets/step_icon.c
 )
